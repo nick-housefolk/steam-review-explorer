@@ -14,17 +14,24 @@ Steam Review Explorer is a client-only Next.js 12 / React 17 app (TypeScript, re
 
 There is no lint script, test suite or test runner. Use `yarn build` to type-check; `tsconfig` has `strict: false` and `noImplicitAny: false`.
 
-Deployment: `.github/workflows/nodejs.yml` runs on every push to `main` and publishes `./out` to GitHub Pages.
+Steam calls go through a CORS proxy, set by `CORS_URL` at the top of `lib/utils/SteamWebApiClient.ts`. The README says to run your own ([joshhills/cors-proxy](https://github.com/joshhills/cors-proxy)) and point `CORS_URL` at it.
+
+Deployment: `.github/workflows/nodejs.yml` runs on every push to `main`. It publishes `./out` to the `gh-pages` branch with `peaceiris/actions-gh-pages`, authenticating with `GITHUB_TOKEN`.
+
+This repo is a fork of `joshhills/steam-review-explorer`, which is set up as the `upstream` remote in this checkout.
 
 ## Architecture
 
 ### Data flow
 
-1. **Fetching** (`lib/utils/SteamWebApiClient.ts`): every Steam call goes through a third-party CORS proxy (`CORS_URL`, currently `https://joshhills.dev/cors/`), followed by the Steam URL without its scheme. `getGame` merges `appdetails` with the review summary from `appreviews?num_per_page=0`. `getReviews` follows `appreviews` pages with `filter=recent` and a cursor, newest first, and retries with `p-retry`. It stops as soon as a review is older than `startDate`.
-2. **Normalisation** happens inside `getReviews`, before each review is stored. The nested `author.*` fields are flattened into `author_*`. Derived fields are added: `censored`, `contains_url`, `author_continued_playing`, `author_playtime_after_review_time`, `length` and `recommendationurl`. Bad vote counts from Steam are cleaned up. Code further down the pipeline expects this flattened shape; the sample object at the top of `ReviewListUtils.ts` still shows the raw shape.
+1. **Fetching** (`lib/utils/SteamWebApiClient.ts`): every Steam call goes through the CORS proxy (`CORS_URL`), followed by the Steam URL without its scheme.
+   - `getGame` merges store `appdetails` with the review summary.
+   - Reviews and the summary both come from the Steamworks `IUserReviewsService/GetAppReviews/v1` endpoint. Its parameters are sent as an `input_json` query param, with numeric enums such as `filter: 1` for recent.
+   - `getReviews` follows pages by cursor, newest first, and retries with `p-retry`. It passes the date range and the optional `HardwareFilters` to the API, and it also stops locally once a review is older than `startDate`.
+2. **Normalisation** happens inside `getReviews`, before each review is stored. The nested `author.*` fields are flattened into `author_*`, with defaults for missing values. Derived fields are added: `censored`, `contains_url`, `author_continued_playing`, `author_playtime_after_review_time`, `length` and `recommendationurl`. `weighted_vote_score`, `refunded` and `primarily_steam_deck` are converted to proper number and boolean types. Bad vote counts from Steam are cleaned up. Code further down the pipeline expects this flattened shape; the sample object at the top of `ReviewListUtils.ts` still shows the raw shape.
 3. **Storage** (`lib/utils/DBUtils.ts`, Dexie):
    - Each game gets its own IndexedDB database, named by its appid, with a single `reviews` table. Its indexed columns are listed in `getReviewStoreForGame`.
-   - A reserved database named `operation` records the last search for each appid (`start`, `end`, `when`).
+   - A reserved database named `operation` records the last search for each appid: `start`, `end`, `params` (the search signature), `hardware` and `when`.
    - Adding a column you want to sort or filter on means adding it to the index string and bumping `REVIEW_STORE_VERSION`.
    - Any database not in `RESERVED_DATABASE_NAMES` is treated as a game store; `/storage` relies on this.
 4. **Statistics** (`lib/utils/ReviewListUtils.ts`): `processReviewsForGame` makes one pass over the Dexie store. It returns a large `reviewStatistics` object of min/max reviews per field, medians, word frequency lists, language totals and volume over time. Components read this object instead of computing their own stats.
@@ -32,8 +39,12 @@ Deployment: `.github/workflows/nodejs.yml` runs on every push to `main` and publ
 
 ### Game page (`pages/game/[appId].tsx`)
 
-- Query params `start`, `end` (ms timestamps) and `languages` (comma-separated Steam locale keys from `lib/utils/SteamLocales.ts`) set the scrape scope.
-- If the game's DB already holds reviews and the date range matches the logged search, scraping is skipped and the stored reviews are used directly. An "Explore" button lets the user re-scrape.
+- These query params set the scrape scope:
+  - `start` and `end`: ms timestamps.
+  - `languages`: comma-separated Steam locale keys from `lib/utils/SteamLocales.ts`.
+  - `deck`, `os`, `cpu` and `gpu`: optional hardware filters, sent to the API as `HardwareFilters`.
+- These are combined into a `searchSignature` string. If the game's DB already holds reviews and the signature matches the logged search, scraping is skipped and the stored reviews are used directly. Older search records without `params` fall back to comparing the date range. An "Explore" button lets the user re-scrape.
+- `GameSearch` builds these URLs from the search form.
 - `components/Loader.tsx` shows scrape progress. Its proceed option aborts the scrape through the `AbortController` passed into `getReviews`.
 
 ### State persistence
