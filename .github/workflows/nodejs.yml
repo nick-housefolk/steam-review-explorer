@@ -31,6 +31,8 @@ jobs:
             ${{ runner.os }}-yarn-
       - run: yarn install
       - run: yarn build
+        env:
+          NEXT_PUBLIC_CORS_URL: ${{ vars.CORS_URL }}
       - run: yarn export
 
       - name: Deploy

@@ -12,11 +12,11 @@ Steam Review Explorer is a client-only Next.js 12 / React 17 app (TypeScript, re
 - `yarn dev`: dev server. Because of `basePath`, the app is served at `http://localhost:3000/steam-review-explorer`.
 - `yarn build` then `yarn export`: production build plus static export to `./out`. This is exactly what CI runs.
 
-There is no lint script, test suite or test runner. Use `yarn build` to type-check; `tsconfig` has `strict: false` and `noImplicitAny: false`.
+There is no lint script or test suite for the app. Use `yarn build` to type-check; `tsconfig` has `strict: false` and `noImplicitAny: false`. The proxy has its own tests: `node proxy/test.mjs`.
 
-Steam calls go through a CORS proxy, set by `CORS_URL` at the top of `lib/utils/SteamWebApiClient.ts`. The README says to run your own ([joshhills/cors-proxy](https://github.com/joshhills/cors-proxy)) and point `CORS_URL` at it.
+Steam calls go through a CORS proxy. Its URL, with a trailing slash, comes from `NEXT_PUBLIC_CORS_URL` at build time and falls back to the original author's `https://joshhills.dev/cors/`, which isn't expected to serve this fork. `proxy/` holds this fork's own proxy, a Cloudflare Worker: it forwards only `GET` requests to the two Steam hosts, and only for origins in `ALLOWED_ORIGINS` in `proxy/wrangler.toml`. If the app starts calling another host, add it to `ALLOWED_HOSTS` in `proxy/worker.js`. Deploy steps are in `proxy/README.md`.
 
-Deployment: `.github/workflows/nodejs.yml` runs on every push to `main`. It publishes `./out` to the `gh-pages` branch with `peaceiris/actions-gh-pages`, authenticating with `GITHUB_TOKEN`.
+Deployment: `.github/workflows/nodejs.yml` runs on every push to `main`. It builds with `NEXT_PUBLIC_CORS_URL` set from the repository variable `CORS_URL`, then publishes `./out` to the `gh-pages` branch with `peaceiris/actions-gh-pages`, authenticating with `GITHUB_TOKEN`.
 
 This repo is a fork of `joshhills/steam-review-explorer`, which is set up as the `upstream` remote in this checkout.
 

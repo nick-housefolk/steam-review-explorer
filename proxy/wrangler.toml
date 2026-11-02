@@ -1,0 +1,6 @@
+name = "steam-review-explorer-proxy"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+ALLOWED_ORIGINS = "https://nick-housefolk.github.io,http://localhost:3000"
