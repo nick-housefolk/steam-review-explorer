@@ -71,7 +71,7 @@ export default function About() {
                     <h3 id="faq">FAQ</h3>
                     <h5 id="data-source">Where does the data come from?</h5>
                     <p>
-                        The data is retrieved from <a href="https://partner.steamgames.com/doc/store/getreviews">Steam's Web API</a> by your web browser via a CORS proxy I'm hosting. It can only see public reviews (ones not made by private accounts). 
+                        The data is retrieved from <a href="https://partner.steamgames.com/doc/webapi/IUserReviewsService" target="_blank" rel="noreferrer">Steam's Web API</a> by your web browser via a CORS proxy I'm hosting. It can only see public reviews (ones not made by private accounts). 
                     </p>
                     <h5 id="data-quantity">Is there a limit to its use?</h5>
                     <p>
@@ -105,6 +105,27 @@ export default function About() {
             <Row className="mb-4">
                 <Col>
                     <h3 id="changelog">Changelog</h3>
+                    <h6>1.1</h6>
+                    <ul>
+                        <li>
+                            Migrated from deprecated Steam store endpoint to Steamworks WebAPI (<code>IUserReviewsService/GetAppReviews/v1</code>) following Valve&apos;s API update
+                        </li>
+                        <li>
+                            Added hardware-filtered scraping options for Steam Deck, Operating System, CPU, and GPU
+                        </li>
+                        <li>
+                            Added support for exporting new Steam Deck (<code>primarily_steam_deck</code>) and refund status (<code>refunded</code>) fields
+                        </li>
+                        <li>
+                            Display applied hardware filter badges prominently on the game exploration page
+                        </li>
+                        <li className="text-secondary">
+                            Adapted author information and filters following Valve&apos;s deprecation of <code>author.num_games_owned</code>
+                        </li>
+                        <li className="text-secondary">
+                            Enhanced pagination reliability and error recovery
+                        </li>
+                    </ul>
                     <h6>1.0</h6>
                     <ul>
                         <li>
