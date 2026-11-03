@@ -242,13 +242,14 @@ async function getReviews(
     endDate: Date,
     languages: Array<string>,
     hardwareFilters?: HardwareFilters,
-    searchSignature: string = ''
+    searchSignature: string = '',
+    searchQuery: Record<string, string> = null
 ) {
     
     const store = DBUtils.getReviewStoreForGame(appId)
     
     await store.clear()
-    await DBUtils.logSearch(appId, startDate, endDate, searchSignature, hardwareFilters)
+    await DBUtils.logSearch(appId, startDate, endDate, searchSignature, hardwareFilters, searchQuery)
 
     const RETRY_THRESHOLD = 50
 

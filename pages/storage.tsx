@@ -36,22 +36,27 @@ export default function Storage() {
 
             let gameRequests = []
             let searchRequests = []
-            for (let appid of Object.keys(reviewCounts)) {
-                gameRequests.push(SteamWebApiClient.getGame(appid))
-                searchRequests.push(DBUtils.getSearch(appid))
+            const appids = Object.keys(reviewCounts)
+            for (let appid of appids) {
+                // A game may have been removed from Steam, or the request may fail;
+                // still list its stored reviews so they can be deleted
+                gameRequests.push(SteamWebApiClient.getGame(appid).catch(() => null))
+                searchRequests.push(DBUtils.getSearch(appid).catch(() => undefined))
             }
             let gamePromise = Promise.all(gameRequests).then(games => {
                 let _games = {}
-                for (let game of games) {
-                    _games[game.steam_appid] = game
-                }
+                appids.forEach((appid, i) => {
+                    _games[appid] = games[i] || { steam_appid: appid, name: `App ${appid}`, header_image: null }
+                })
                 setGames(_games)
             })
             let searchPromise = Promise.all(searchRequests).then((searches) => {
                 let _searches = {}
-                for (let search of searches) {
-                    _searches[search.appid] = search
-                }
+                appids.forEach((appid, i) => {
+                    if (searches[i]) {
+                        _searches[appid] = searches[i]
+                    }
+                })
                 setSearches(_searches)
             })
 

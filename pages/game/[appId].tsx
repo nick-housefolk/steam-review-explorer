@@ -88,7 +88,17 @@ const Game = () => {
         activeHardwareFilters.hardwareGpu
     )
 
-    const searchSignature = `${startDate.getTime()}-${endDate.getTime()}-${selectedLanguages.slice().sort().join(',')}-${primarilySteamDeck}-${hardwareOs}-${hardwareCpu}-${hardwareGpu}`
+    // Build the signature from the URL rather than the computed dates: a missing `end`
+    // defaults to now, which would make "all time" searches never match a stored one
+    const searchSignature = `${isNaN(start) ? '' : start}-${isNaN(end) ? '' : end}-${selectedLanguages.slice().sort().join(',')}-${primarilySteamDeck}-${hardwareOs}-${hardwareCpu}-${hardwareGpu}`
+
+    // The query params that define this search, so it can be reopened as-is (e.g. from /storage)
+    const searchQuery = {}
+    for (const key of ['start', 'end', 'languages', 'deck', 'os', 'cpu', 'gpu']) {
+        if (router.query[key] !== undefined) {
+            searchQuery[key] = router.query[key] as string
+        }
+    }
 
     const getFilterDescriptions = () => {
         if (!activeHardwareFilters) return ''
@@ -129,7 +139,7 @@ const Game = () => {
         
         const abortController = new AbortController()
 
-        SteamWebApiClient.getReviews(withGame, appId, setUpdate, setScrapeError, abortController, startDate, endDate, selectedLanguages, hardwareFilters, searchSignature).then((reviewCount) => {
+        SteamWebApiClient.getReviews(withGame, appId, setUpdate, setScrapeError, abortController, startDate, endDate, selectedLanguages, hardwareFilters, searchSignature, searchQuery).then((reviewCount) => {
                             
             if (reviewCount === 0) {
                 return
