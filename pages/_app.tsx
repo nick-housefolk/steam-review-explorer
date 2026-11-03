@@ -3,6 +3,7 @@ import './app.scss'
 import Layout from '../components/Layout'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
+import { useEffect } from 'react'
 
 export default function MyApp({ Component, pageProps }) {
   
@@ -11,14 +12,16 @@ export default function MyApp({ Component, pageProps }) {
 
   const router = useRouter()
 
-  if (Object.keys(router.query).length >= 1) {
-    const firstQuery = Object.keys(router.query)[0]
-    if (firstQuery[0] === '/') {
-      const decoded = firstQuery.slice(1).split('&').map((s) => s.replace(/~and~/g,'&')).join('?')
-      
-      router.push(router.pathname + decoded)
+  // GitHub Pages serves 404.html for deep links like /game/<appId>?start=...; pages/404.tsx
+  // re-encodes them as /?/game/<appId>&start=...~and~end=... Decode the whole query string
+  // (not just the first router.query key, which holds only the path) and restore the original URL.
+  useEffect(() => {
+    const { search, hash } = window.location
+    if (search[1] === '/') {
+      const decoded = search.slice(1).split('&').map((s) => s.replace(/~and~/g, '&')).join('?')
+      router.replace(decoded + hash)
     }
-  }
+  }, [])
 
   return (<>
     <Head>
